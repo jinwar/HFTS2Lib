@@ -189,6 +189,10 @@ class DxSProject:
     def set_current_dataset(self,dataset_name):
         self.current_dataset = dataset_name
     
+    def set_depth_range(self,min_md,max_md):
+        self.min_md = min_md
+        self.max_md = max_md
+    
     def read_dataset(self,start_time=None,end_time=None):
         dataset_name = self.current_dataset
         if dataset_name is None:
