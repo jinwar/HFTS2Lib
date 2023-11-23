@@ -5,7 +5,7 @@ import pandas as pd
 from glob import glob
 import numpy as np
 from tqdm import tqdm
-from JIN_pylib import Data2D_XT
+from JIN_pylib import Data2D_XT,Data1D,VizUtil
 import xml.etree.ElementTree as ET
 from dateutil import parser 
 
@@ -169,11 +169,44 @@ def read_pump_curves(file_path):
 class DxSProject:
 
     def __init__(self,project_path) -> None:
+        """
+        Initialize a new instance of the class.
+
+        :param project_path: The path to the project directory. This directory should contain all the necessary files and subdirectories for the project.
+
+        Usage example:
+        ```python
+        # Create a new DxSProject instance
+        proj = DxSProject('path/to/project')
+
+        # Set the current dataset
+        current_dataset = '0.1 Hz Diff'
+        proj.print_dataset_info(current_dataset)
+        proj.set_current_dataset(current_dataset)
+
+        # Read the dataset with a specified start time
+        proj.read_dataset(start_time='2019-04-02', end_time=None)
+
+        # Make a coplot of DAS and pumping curves
+        import matplotlib.pyplot as plt
+        fig = plt.figure()
+        p = proj.get_coplot_simple(fig, c_range=1e4)
+        p.draw()
+        plt.show()
+        ```
+        """
         self.project_path = project_path
         self.read_fiber()
         self.current_dataset = None
         self.min_md = None
         self.max_md = None
+        try:
+            print('Reading pump curves...')
+            self.read_pump_curves()
+        except:
+            print('No pump curves found')
+        print('Available datasets:')
+        self.print_dataset_list()
     
     def read_fiber(self):
         filepath = self.project_path + '/Well/Fibres.xml'
@@ -184,7 +217,12 @@ class DxSProject:
     def read_pump_curves(self):
         filepath = self.project_path + '/Input/Curves/curves.h5'
         df = read_pump_curves(filepath)
-        return df
+        self.pump_df = df
+        Pdata = Data1D.PumpCurve(df)
+        Pdata.set_time_from_timestamp(df['Time'])
+        Pdata.set_plot_columns(df.list_columns()[1:])
+        self.Pdata = Pdata
+        return Pdata
     
     def set_current_dataset(self,dataset_name):
         self.current_dataset = dataset_name
@@ -203,7 +241,12 @@ class DxSProject:
         data.chans = self.chans
         data.daxis = self.daxis
         data.select_depth(self.min_md,self.max_md)
+        self.DASdata = data
         return data
+    
+    def get_coplot_simple(self,fig,c_center=0,c_range=1):
+        p = VizUtil.CoPlot_Simple(fig,self.DASdata,self.Pdata, c_range=c_range,c_center=c_center)
+        return p
 
     def print_dataset_list(self):
         # Construct the path to the 'Input' directory
