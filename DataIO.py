@@ -138,20 +138,20 @@ def _find_group(file, pattern, path=''):
     return None
 
 def read_pump_curves(file_path):
-    dataset_names = ['surface pressure', 'slurry rate', 'bottomhole concentration', 'utc_time']
+    dataset_names = ['surface pressure', 'slurry rate', 'bottomhole concentration', 'utc']
     data = {}
 
     with h5py.File(file_path, 'r') as file:
         # Find the group that contains 'Filtered Pump Data'
-        group_name = _find_group(file, '*filtered pump data*')
+        group_name = _find_group(file, '*filtered*pump*')
 
         if group_name is None:
-            raise ValueError("No group found that matches the pattern '*filtered pump data*'")
+            raise ValueError("No group found that matches the pattern '*filtered*pump*'")
 
         for name in dataset_names:
             try:
                 # Find the dataset that matches the name, case-insensitive
-                dataset_name = next(d for d in file[group_name] if d.lower() == name)
+                dataset_name = next(d for d in file[group_name] if name in d.lower())
 
                 # Reading the "Data" sub-dataset under each specified dataset
                 data_path = f"{group_name}/{dataset_name}/Data"
@@ -160,7 +160,7 @@ def read_pump_curves(file_path):
                 data[name] = f"Error reading dataset: {e}"
     
     df = pd.DataFrame()
-    df['Time'] = [datetime.datetime.fromtimestamp(int(t/1e3)) for t in data['utc_time']]
+    df['Time'] = [datetime.datetime.fromtimestamp(int(t/1e3)) for t in data['utc']]
     for key in dataset_names[:-1]:
         df[key] = data[key].flatten()
 
@@ -220,7 +220,7 @@ class DxSProject:
         self.pump_df = df
         Pdata = Data1D.PumpCurve(df)
         Pdata.set_time_from_timestamp(df['Time'])
-        Pdata.set_plot_columns(df.list_columns()[1:])
+        Pdata.set_plot_columns(df.columns[1:])
         self.Pdata = Pdata
         return Pdata
     
@@ -281,3 +281,7 @@ class DxSProject:
         print(f"First file: {files[0]}")
         print(f"Last file: {files[-1]}")
         print(f"Total size: {total_size/1024/1024:.1f} MB")
+    
+    def print_current_dataset_info(self):
+        dataset_name = self.current_dataset
+        self.print_dataset_info(dataset_name)   
